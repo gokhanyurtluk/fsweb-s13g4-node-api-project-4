@@ -2,6 +2,10 @@ const express = require("express");
 const cors = require("cors");
 const kayitOlValidation = require("../middleware/kayit-ol");
 
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+
 const server = express();
 
 server.use(cors());
@@ -17,25 +21,33 @@ server.get("/api/kullanicilar", (req, res) => {
     }));
 });
 
-server.post("/api/kayitol", kayitOlValidation, (req, res) => {
+server.post("/api/kullanicilar/kayitol", kayitOlValidation, async  (req, res) => {
+   const hashedPassword = await bcrypt.hash(req.body.sifre, saltRounds);
    const user = {
     kullaniciadi: req.body.kullaniciadi,
-    sifre: req.body.sifre
+    sifre: hashedPassword
 };
+
     users.push(user);
     return res.status(201).json(user);
 });
 
-server.post("/api/kullanicilar/giris", (req, res) => {
+server.post("/api/kullanicilar/giris", async (req, res) => {
     const {kullaniciadi, sifre} = req.body;
-    const user = users.find((item) => item.kullaniciadi === kullaniciadi && item.sifre === sifre);
-    if(user) {
-        return res.status(200).json({message: "Hoşgeldin!"});
-    } else {
+   
+    const user = users.find((item) => item.kullaniciadi === kullaniciadi);
+    if(!user) {
         return res.status(401).json({error: "Kullanıcı adı veya şifre hatalı."})
-    }
+     } else {
+       const isMatch = await bcrypt.compare(sifre, user.sifre);
+       if(isMatch) {
+        return res.status(200).json({message:"Hoşgeldin!"})
+       } else {
+        return res.status(401).json({error: "Kullanıcı adı veya şifre hatalı."})
+       }
+     }
 
-})
+});
 
 
 module.exports = server;
